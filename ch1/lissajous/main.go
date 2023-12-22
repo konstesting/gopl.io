@@ -13,26 +13,31 @@ import (
 	"image/color"
 	"image/gif"
 	"io"
+	"log"
 	"math"
 	"math/rand"
+	"net/http"
 	"os"
+	"strconv"
+	"time"
 )
 
 //!-main
 // Packages not needed by version in book.
-import (
-	"log"
-	"net/http"
-	"time"
-)
 
 //!+main
 
-var palette = []color.Color{color.White, color.Black}
+var palette = []color.Color{
+	color.Black,
+	color.RGBA64{0, 0xffff, 0xffff, 0xffff},
+	color.RGBA64{0, 0xffff, 0, 0xffff},
+	color.RGBA64{0xffff, 0, 0, 0xffff},
+	color.RGBA64{0xffff, 0xffff, 0xffff, 0xffff},
+}
 
 const (
-	whiteIndex = 0 // first color in palette
-	blackIndex = 1 // next color in palette
+// whiteIndex = 1 // first color in palette
+// blackIndex = 1 // next color in palette
 )
 
 func main() {
@@ -41,11 +46,18 @@ func main() {
 	// the pseudo-random number generator using the current time.
 	// Thanks to Randall McPherson for pointing out the omission.
 	rand.Seed(time.Now().UTC().UnixNano())
+	var cycles int = 5
 
 	if len(os.Args) > 1 && os.Args[1] == "web" {
 		//!+http
 		handler := func(w http.ResponseWriter, r *http.Request) {
-			lissajous(w)
+			s := r.URL.Query().Get("cycles")
+			if s != "" {
+				if i, err := strconv.ParseInt(s, 10, 0); err == nil {
+					cycles = int(i)
+				}
+			}
+			lissajous(w, cycles)
 		}
 		http.HandleFunc("/", handler)
 		//!-http
@@ -53,12 +65,12 @@ func main() {
 		return
 	}
 	//!+main
-	lissajous(os.Stdout)
+	lissajous(os.Stdout, cycles)
 }
 
-func lissajous(out io.Writer) {
+func lissajous(out io.Writer, cycles int) {
 	const (
-		cycles  = 5     // number of complete x oscillator revolutions
+		// cycles  = 5     // number of complete x oscillator revolutions
 		res     = 0.001 // angular resolution
 		size    = 100   // image canvas covers [-size..+size]
 		nframes = 64    // number of animation frames
@@ -68,13 +80,14 @@ func lissajous(out io.Writer) {
 	anim := gif.GIF{LoopCount: nframes}
 	phase := 0.0 // phase difference
 	for i := 0; i < nframes; i++ {
+		colorIndex := rand.Intn(2) + 1
 		rect := image.Rect(0, 0, 2*size+1, 2*size+1)
 		img := image.NewPaletted(rect, palette)
-		for t := 0.0; t < cycles*2*math.Pi; t += res {
+		for t := 0.0; t < float64(cycles*2)*math.Pi; t += res {
 			x := math.Sin(t)
 			y := math.Sin(t*freq + phase)
 			img.SetColorIndex(size+int(x*size+0.5), size+int(y*size+0.5),
-				blackIndex)
+				uint8(colorIndex))
 		}
 		phase += 0.1
 		anim.Delay = append(anim.Delay, delay)

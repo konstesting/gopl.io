@@ -17,16 +17,18 @@ import (
 func main() {
 	counts := make(map[string]int)
 	files := os.Args[1:]
+	yetMap := counts
 	if len(files) == 0 {
-		countLines(os.Stdin, counts)
+		countLines(os.Stdin, yetMap)
 	} else {
 		for _, arg := range files {
+			fmt.Printf("Opening file %q\n", arg)
 			f, err := os.Open(arg)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "dup2: %v\n", err)
 				continue
 			}
-			countLines(f, counts)
+			countLines(f, yetMap)
 			f.Close()
 		}
 	}
